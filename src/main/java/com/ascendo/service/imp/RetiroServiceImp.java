@@ -16,7 +16,7 @@ import com.ascendo.repository.RetiroRepo;
 import com.ascendo.service.RetiroService;
 
 /*
- * Clase que implementa la interfaz BilleteService y permite tener el control lÛgico de los microservicios expuestos con sus correspondientes validaciones
+ * Clase que implementa la interfaz BilleteService y permite tener el control l√≥gico de los microservicios expuestos con sus correspondientes validaciones
  */
 @Service
 public class RetiroServiceImp implements RetiroService {
@@ -29,55 +29,54 @@ public class RetiroServiceImp implements RetiroService {
 	private BilleteRepo repoBillete;
 	
 	/*
-	 * Este mÈtodo se encarga de guarda los valores correspondientes al retiro
+	 * Este m√©todo se encarga de guarda los valores correspondientes al retiro
 	 * Para ellos primero realiza validaciones de denominaciones, valor a retirar, cantidades disponibles. 
-	 * Si la informaciÛn ingresada es v·lida realiza el descuento en las diferentes cantidades de billetes
-	 * y le devuelve la informaciÛn de cuantos billetes fueron retirados
+	 * Si la informaci√≥n ingresada es v√°lida realiza el descuento en las diferentes cantidades de billetes
+	 * y le devuelve la informaci√≥n de cuantos billetes fueron retirados
 	 */
 	@Override
 	public Object save(Retiro retiro) {
 		long valor = retiro.getValor();
 		if (valor % 10000 != 0) {
-			throw new BussinesLogicException("VAlor no permitido");
+			throw new BussinesLogicException("Valor no permitido");
 		}
-		List<String> listado = new ArrayList<>();
+		List<String> listado = new ArrayList<>();		
 		boolean terminoProceso = true;
 		int cantidadesDes = 0;
 		List<Billete> billetes = repoBillete.findAll(Sort.by("denominacion").descending());
+		List<Billete> descuentos = repoBillete.findAll(Sort.by("denominacion").descending());
 		int tamano = billetes.size();
 		int cantidadExistente = 0;
 		int i = 0;
 		do {
-			if (billetes.get(i).getCantidad() > 0 && billetes.get(i).getCantidad()-cantidadesDes>0) {
+			if (billetes.get(i).getCantidad() > 0 && billetes.get(i).getCantidad() - cantidadesDes > 0) {
 				if (valor >= billetes.get(i).getDenominacion()) {
 					valor = valor - billetes.get(i).getDenominacion();
-					cantidadesDes++;
-				} else {
-					cantidadExistente = billetes.get(i).getCantidad();
-					billetes.get(i).setCantidad(cantidadExistente - cantidadesDes);
-					repoBillete.save(billetes.get(i));
-					if(cantidadesDes!=0)
-						listado.add(" -> " + billetes.get(i).getDenominacion() + "  " + cantidadesDes);
-					i++;
-					cantidadesDes = 0;
-				}
+					cantidadesDes++;					
+				} 
 			} else {
+				cantidadExistente = billetes.get(i).getCantidad();
+				descuentos.get(i).setCantidad(cantidadExistente - cantidadesDes);
 				i++;
+				cantidadesDes = 0;
 			}
 			if (i >= tamano && valor > 0) {
 				return "No hay fondos suficientes";
-			}
+			}		
+			if (cantidadesDes != 0)
+				listado.add(" -> " + billetes.get(i).getDenominacion() + "  " + cantidadesDes);
 			if (valor == 0) {
 				terminoProceso = false;
 				repoRetiro.save(retiro);
 				cantidadExistente = billetes.get(i).getCantidad();
-			    billetes.get(i).setCantidad(cantidadExistente - cantidadesDes);
-				repoBillete.save(billetes.get(i));
-				if(cantidadesDes != 0)
-					listado.add(" -> " + billetes.get(i).getDenominacion() + "  " + cantidadesDes);
+				billetes.get(i).setCantidad(cantidadExistente - cantidadesDes);
+				repoBillete.save(billetes.get(i));				
 			}
 		} while (terminoProceso);
-
+		//Descuento de cantidad de billetes
+		for(int j=0; j<tamano; j++) {
+			repoBillete.save(descuentos.get(j));
+		}
 		return listado;
 
 	}
